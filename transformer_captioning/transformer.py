@@ -96,7 +96,7 @@ class MultiHeadAttentionLayer(AttentionLayer):
 
         # concat embeddings from different heads, and project
         y = y.transpose(1, 2).contiguous().view(N, S, D)
-        output = self.output_proj(y)
+        output = self.out_proj(y)
 
         return output
 
