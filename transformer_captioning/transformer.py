@@ -57,8 +57,8 @@ class MultiHeadAttentionLayer(AttentionLayer):
         self.num_heads = num_heads
 
         # TODO: Initialize the following layers and parameters to perform attention
-        self.head_proj = nn.Linear(embed_dim, embed_dim * num_heads)
-        self.output_proj = nn.Linear(embed_dim * num_heads, embed_dim)
+        self.head_proj = nn.Linear(embed_dim, embed_dim)
+        self.output_proj = nn.Linear(embed_dim, embed_dim)
 
     def forward(self, query, key, value, attn_mask=None):
         H = self.num_heads
@@ -84,7 +84,7 @@ class MultiHeadAttentionLayer(AttentionLayer):
             # convert att_mask which is multiplicative, to an additive mask
             # Hint : If mask[i,j] = 0, we want softmax(QKT[i,j] + additive_mask[i,j]) to be 0
             # Think about what inputs make softmax 0.
-            additive_mask = attn_mask.unsqueeze(1).unsqueeze(2).masked_fill(attn_mask == 0, float('-inf'))
+            additive_mask = attn_mask.unsqueeze(0).unsqueeze(0).masked_fill(attn_mask == 0, float('-inf'))
             dot_product += additive_mask
         
         # apply softmax, dropout, and use value
@@ -118,7 +118,7 @@ class PositionalEncoding(nn.Module):
         # TODO - add the encoding to x
 
         x = x + self.encoding[:, :S, :].to(x.device)
-        output = self.dropout(output)
+        output = self.dropout(x)
    
         return output
 
