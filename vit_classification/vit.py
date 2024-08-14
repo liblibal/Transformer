@@ -54,10 +54,14 @@ class ViT(nn.Module):
         self.num_classes = num_classes
         self.device = device
 
-        self.patch_embedding = None # TODO (Linear Layer that takes as input a patch and outputs a d_model dimensional vector)
-        self.positional_encoding = None # TODO (use the positional encoding from the transformer captioning solution)
-        self.fc = None # TODO (takes as input the embedding corresponding to the [CLS] token and outputs the logits for each class)
-        self.cls_token = None # TODO (learnable [CLS] token embedding)
+        self.patch_embedding = nn.Linear(patch_dim * patch_dim * 3, d_model)
+        # TODO (Linear Layer that takes as input a patch and outputs a d_model dimensional vector)
+        self.positional_encoding = PositionalEncoding(d_model, max_len=num_patches+1)
+        # TODO (use the positional encoding from the transformer captioning solution)
+        self.fc =  nn.Linear(d_model, num_classes)
+        # TODO (takes as input the embedding corresponding to the [CLS] token and outputs the logits for each class)
+        self.cls_token =  nn.Parameter(torch.zeros(1, 1, d_model))
+        # TODO (learnable [CLS] token embedding)
 
         self.layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff) for _ in range(num_layers)])
 
@@ -76,8 +80,27 @@ class ViT(nn.Module):
 
         # TODO - Break images into a grid of patches
         # Feel free to use pytorch built-in functions to do this
-        
-        return images
+
+        # Assume patch_dim is defined (e.g., 16 for 16x16 patches)
+        patch_dim = self.patch_dim
+
+        # Get the batch size, channels, height, and width of the images
+        N, C, H, W = images.shape
+
+        # Calculate the number of patches along height and width
+        num_patches_h = H // patch_dim
+        num_patches_w = W // patch_dim
+        num_patches = num_patches_h * num_patches_w
+
+        # Use unfold to extract patches
+        patches = images.unfold(2, patch_dim, patch_dim).unfold(3, patch_dim, patch_dim)
+
+        # patches now has shape (N, C, num_patches_h, num_patches_w, patch_dim, patch_dim)
+        # Permute and reshape to get the desired output shape
+        patches = patches.permute(0, 2, 3, 1, 4, 5).contiguous()
+        patches = patches.view(N, num_patches, patch_dim * patch_dim * C)
+
+        return patches
 
     def forward(self, images):
         """
@@ -91,17 +114,25 @@ class ViT(nn.Module):
         patches = self.patchify(images)
         patches_embedded = self.patch_embedding(patches)
         
-        output = None # TODO (append a CLS token to the beginning of the sequence of patch embeddings)
+        # output = None 
+        # TODO (append a CLS token to the beginning of the sequence of patch embeddings)
+        batch_size = patches_embedded.size(0)
+        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+        output = torch.cat((cls_tokens, patches_embedded), dim=1)
 
-        output = self.positional_encoding(patches_embedded)
-        mask = torch.ones((self.num_patches, self.num_patches), device=self.device)
+        output = self.positional_encoding(output)
+        mask = torch.ones((self.num_patches+1, self.num_patches+1), device=self.device)
 
         for layer in self.layers:
             output = layer(output, mask)
 
-        output = None # TODO (take the embedding corresponding to the [CLS] token and feed it through a linear layer to obtain the logits for each class)
+        # output = None 
+        # TODO (take the embedding corresponding to the [CLS] token and feed it through a linear layer to obtain the logits for each class)
+        
+        cls_output = output[:, 0]
+        logits = self.fc(cls_output)
 
-        return output
+        return logits
 
     def _init_weights(self, module):
         """
