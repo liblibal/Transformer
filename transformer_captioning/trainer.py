@@ -29,7 +29,7 @@ class Trainer(object):
 
         predictions =predictions.reshape(predictions.size(0)*predictions.size(1),predictions.size(2))
         labels=labels.reshape(labels.size(0)*labels.size(1))
-        print(predictions,labels)
+        # print(predictions,labels)
 
         loss=criterion(predictions,labels)
         return loss
